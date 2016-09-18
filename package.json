@@ -1,0 +1,14 @@
+{
+  "name": "mr-memetastic-bot",
+  "version": "1.0.0",
+  "author": "Kyle",
+  "private": true,
+  "main": "start_bot.js",
+  "scripts": {
+    "bot": "node start_bot.js",
+    "test": "node test_bot.js"
+  },
+  "dependencies": {
+    "discord.js": "^9.2.0"
+  }
+}
