@@ -1,96 +1,102 @@
 /**
- * Created by Kyle Flynn on 6/14/2016.
+ * Created by Kyle Flynn on 9/18/2016.
  */
-"use strict";
 
-var Discord = require("discord.js");
-var FS = require("fs");
+const Discord = require("discord.js");
+const FS = require("fs");
+const APP = require('./package.json');
+const bot = new Discord.Client({
 
-var mybot = new Discord.Client();
-var self = this;
-
-mybot.on("ready", function() {
-    mybot.setStatus("online", "League of Legends", self.logError);
 });
 
-mybot.on("message", function(message) {
-    if (message.author.voiceChannel != null) {
+bot.on('ready', () => {
+    bot.user.setStatus('online', 'v' + APP.version).then(user => console.log('Bot ready')).catch(console.log);
+});
 
-        if (message.content.startsWith(".")) {
-            if (message.content.indexOf(" ") > 0) {
-                var cmd = message.content.split(" ");
+bot.on('message', message => {
 
-                if (cmd[0] == ".meme") {
-                    var clip = "sounds/" + cmd[1] + ".flac";
-                    FS.access(clip, function (err) {
-                        if (err && err.code === 'ENOENT') {
-                            mybot.reply(message.channel, "Error finding meme clip");
-                        } else {
-                            mybot.joinVoiceChannel(message.author.voiceChannel, function (error, voiceConnection) {
-                                if (!error) {
-                                    voiceConnection.setVolume(1.0);
-                                    voiceConnection.playFile(clip, 2.0, function (error, intent) {
-                                        if (!error) {
-                                            intent.on("end", function () {
-                                                mybot.leaveVoiceChannel(voiceConnection.voiceChannel, self.logError);
-                                            });
-                                        }
-                                    });
-                                } else {
-                                    mybot.reply(message.channel, "SHIT");
-                                }
-                            });
-                        }
-                    });
-                } else {
-                    // Did not recognize the command
-                    mybot.reply(message.channel, "Unrecognized command");
-                }
+    if (message.channel != null && message.content.startsWith(".")) {
 
-            } else if (message.content == ".stop") {
-                if (mybot.internal.voiceConnection) {
-                    mybot.internal.voiceConnection.stopPlaying();
-                }
-            } else if (message.content == ".memebox") {
-                FS.readdir("sounds/", function(err, files) {
-                    if (!err) {
-                        var clips = "";
-                        for (var i = 0; i < files.length; i++) {
-                            if (i + 1 == files.length) {
-                                clips = clips + files[i].replace(".mp3", "");
-                            } else {
-                                clips = clips + files[i].replace(".mp3", "") + ", ";
+        var channel = message.channel;
+
+        //Do commands that require a voice channel
+        if (message.content.indexOf(" ") > 0) {
+            var cmd = message.content.split(" ");
+
+            if (cmd[0] == ".meme") {
+                var clip = "sounds/" + cmd[1] + ".mp3";
+                FS.access(clip, function (err) {
+                    if (err && err.code === 'ENOENT') {
+                        channel.sendMessage("Error finding meme clip");
+                    } else {
+
+                        return new Promise((resolve, reject) => {
+                            var voiceChannel = message.member.voiceChannel;
+                            if (!voiceChannel || voiceChannel.type !== 'voice') {
+                                channel.sendMessage(message.author + ' could not join voice channel.');
                             }
-                        }
-                        mybot.sendMessage(message.channel, "Available clips: [" + clips + "]");
+                            voiceChannel.join().then(connection => {
+                                resolve(connection);
+
+                                let dispatcher = connection.playFile(clip);
+
+                                dispatcher.on('end', () => {
+                                    connection.channel.leave();
+                                });
+                                dispatcher.on('error', err => {
+                                    return channel.sendMessage("ERROR FUCK");
+                                });
+
+                            }).catch(err => reject(err));
+                        });
+
                     }
                 });
-            } else if (message.content == ".rtd") {
-                var num = Math.floor((Math.random() * 6) + 1);
-                mybot.sendMessage(message.channel, "You rolled a " + num);
-            } else if (message.content == ".help") {
-                mybot.sendMessage(message.channel, "--------------------COMMANDS--------------------");
-                mybot.sendMessage(message.channel, ".meme [clip] -- plays the specified clip, if it exists");
-                mybot.sendMessage(message.channel, ".stop -- stops any sound coming from the bot");
-                mybot.sendMessage(message.channel, ".memebox -- shows a list of what's inside the memebox");
-                mybot.sendMessage(message.channel, ".rtd -- roll the dice!");
-                mybot.sendMessage(message.channel, "--------------------COMMANDS--------------------");
             } else {
-                // Did not recognize the command
-                mybot.reply(message.channel, "Unrecognized command");
+                channel.sendMessage(message.author + " unrecognized command.");
+            }
+
+        } else if (message.content == ".memebox") {
+            FS.readdir("sounds/", (err, files) => {
+                if (!err) {
+                    var clips = "";
+                    for (var i = 0; i < files.length; i++) {
+                        if (i + 1 == files.length) {
+                            clips = clips + files[i].replace(".mp3", "");
+                        } else {
+                            clips = clips + files[i].replace(".mp3", "") + ", ";
+                        }
+                    }
+                    channel.sendMessage("Available clips: [" + clips + "]");
+                }
+            });
+        } else if (message.content == ".rtd") {
+            var num = Math.floor((Math.random() * 6) + 1);
+            channel.sendMessage("You rolled a " + num);
+        } else if (message.content == ".help") {
+            // TODO - add help
+        } else if (message.content == ".version") {
+            channel.sendMessage("Current bot version: v" + APP.version + ". Type .changelog to see what's new.");
+        } else if (message.content == ".changelog") {
+            FS.readFile("changelog.log", "utf-8", (err, data) => {
+                if (err) {
+                    return console.log("Error: " + err);
+                } else {
+                    let versions = data.split("****");
+                    channel.sendMessage(versions[0]);
+                }
+            });
+        } else {
+            if (message.author != bot) {
+                channel.sendMessage(message.author + " unrecognized command.");
             }
         }
-
-        if (message.content === "ping") {
-            mybot.reply(message.channel, "NOPE");
-        }
     }
+
+    if (message.content === "ping") {
+        channel.sendMessage(message.author + " NOPE!");
+    }
+
 });
 
-function logError(error) {
-    if (error) {
-        console.log(error);
-    }
-}
-
-mybot.loginWithToken("MTkyMDg3ODM2ODMxMzgzNTUy.CkD4-g.J4vRntgRQYbUKARHlBJMmR3y9x8");
+bot.login("MTkyMDg3ODM2ODMxMzgzNTUy.CkD4-g.J4vRntgRQYbUKARHlBJMmR3y9x8");

@@ -1,0 +1,5 @@
+2.0.1:
+-Fixed the bot status and game strings
+****
+2.0.0:
+-Updated bot to fully support the newer Discord.js library (v9.2.0)

@@ -1,6 +1,6 @@
 {
   "name": "mr-memetastic-bot",
-  "version": "1.0.0",
+  "version": "2.0.1",
   "author": "Kyle",
   "private": true,
   "main": "start_bot.js",
